@@ -1,0 +1,432 @@
+* What Is This
+A mashup of my current knavemacs configuration, snippets from
+SystemCrafters, and a lot of copy-paste from LionyxML's emacs-solo
+configuration.  The goal is to minimize the number of external
+packages I pull into emacs.
+* Prerequsites
+- ripgrep
+- JetBrainsMono Nerd Font
+* Configuration
+** Early Init
+Gracefully picked up from https://github.com/LionyxML/emacs-solo
+
+** Emacs General Config
+#+BEGIN_SRC elisp
+  (use-package emacs
+    :ensure nil
+    :bind
+    (("M-o" . other-window)
+     ("M-j" . duplicate-dwim)
+     ("M-g r" . recentf)
+     ("M-s g" . grep)
+     ("C-x ;" . comment-line)
+     ("M-s f" . find-name-dired)
+     ("C-x C-b" . ibuffer)
+     ("RET" . newline-and-indent))
+    :custom
+    (ad-redefinition-action 'accept)
+    (column-number-mode nil)
+    (line-number-mode nil)
+    (completion-ignore-case t)
+    (completions-detailed t)
+    (delete-by-moving-to-trash t)
+    (display-line-numbers-width 3)
+    (display-line-numbers-widen t)
+    (delete-selection-mode 1)
+    (enable-recursive minibuffers t)
+    (find-ls-option '("-exec ls -ldh {} +" . "-ldh"))  ; find-dired results with human readable sizes
+    (frame-resize-pixelwise t)
+    (global-auto-revert-non-file-buffers t)
+    (help-window-select t)
+    (history-length 300)
+    (inhibit-startup-message t)
+    (initial-scratch-message "")
+    (ispell-dictionary "en_US")
+    (kill-do-not-save-duplicates t)
+    (create-lockfiles nil)   ; No backup files
+    (make-backup-files nil)  ; No backup files
+    (backup-inhibited t)     ; No backup files
+    (pixel-scroll-precision-mode t)
+    (pixel-scroll-precision-use-momentum nil)
+    (ring-bell-function 'ignore)
+    (read-answer-short t)
+    (recentf-max-saved-items 300) ; default is 20
+    (recentf-max-menu-items 15)
+    (recentf-auto-cleanup (if (daemonp) 300 'never))
+    (recentf-exclude (list "^/\\(?:ssh\\|su\\|sudo\\)?:"))
+    (remote-file-name-inhibit-delete-by-moving-to-trash t)
+    (remote-file-name-inhibit-auto-save t)
+    (resize-mini-windows 'grow-only)
+    (ring-bell-function #'ignore)
+    (scroll-conservatively 8)
+    (scroll-margin 5)
+    (savehist-save-minibuffer-history t)    ; t is default
+    (savehist-additional-variables
+     '(kill-ring                            ; clipboard
+       register-alist                       ; macros
+       mark-ring global-mark-ring           ; marks
+       search-ring regexp-search-ring))     ; searches
+    (save-place-file (expand-file-name "saveplace" user-emacs-directory))
+    (save-place-limit 600)
+    (set-mark-command-repeat-pop t) ; So we can use C-u C-SPC C-SPC C-SPC... instead of C-u C-SPC C-u C-SPC...
+    (split-width-threshold 170)     ; So vertical splits are preferred
+    (split-height-threshold nil)
+    (shr-use-colors nil)
+    (switch-to-buffer-obey-display-actions t)
+    (tab-always-indent 'complete)
+    (tab-width 4)
+    (treesit-font-lock-level 4)
+    (truncate-lines t)
+    (undo-limit (* 13 160000))
+    (undo-strong-limit (* 13 240000))
+    (undo-outer-limit (* 13 24000000))
+    (use-dialog-box nil)
+    (use-file-dialog nil)
+    (use-package-hook-name-suffix nil)
+    (use-short-answers t)
+    (visible-bell nil)
+    (window-combination-resize t)
+    (window-resize-pixelwise nil)
+    (xref-search-program 'ripgrep)
+    (grep-command "rg -nS --no-heading ")
+    (grep-find-ignored-directories
+     '("SCCS" "RCS" "CVS" "MCVS" ".src" ".svn" ".git" ".hg" ".bzr" "_MTN" "_darcs" "{arch}" "node_modules" "build" "dist"))
+    :config
+    ;; Font and Theme Configuration
+    (load-theme 'manoj-dark t)
+    (add-to-list 'default-frame-alist
+  			   '(font . "JetBrainsMono NF 12"))
+    ;; Set line-number-mode with relative numbering
+    (defun minknavemacs/no-line-nums-hook ()
+  	(display-line-numbers-mode 0))
+    (setq display-line-numbers-type 'relative)
+    (global-display-line-numbers-mode t)
+    (dolist (mode '(term-mode-hook
+  				  eshell-mode-hook
+  				  dired-mode-hook))
+  	(add-hook mode 'minknavemacs/no-line-nums-hook))
+    ;; Makes everything accept utf-8 as default, so buffers with tsx and so
+    ;; won't ask for encoding (because undecided-unix) every single keystroke
+    (modify-coding-system-alist 'file "" 'utf-8)
+    ;; A Protesilaos life savier HACK
+    ;; Add option "d" to whenever using C-x s or C-x C-c, allowing a quick preview
+    ;; of the diff (if you choose `d') of what you're asked to save.
+    (add-to-list 'save-some-buffers-action-alist
+  		       (list "d"
+  					 (lambda (buffer) (diff-buffer-with-file (buffer-file-name buffer)))
+  					 "show diff between the buffer and its file"))
+    ;; On Terminal: changes the vertical separator to a full vertical line
+    ;;              and truncation symbol to a right arrow
+    (set-display-table-slot standard-display-table 'vertical-border ?\u2502)
+    (set-display-table-slot standard-display-table 'truncation ?\u2192)
+    ;; Ibuffer filters
+    (setq ibuffer-saved-filter-groups
+  	    '(("default"
+  	       ("org" (or
+  				   (mode . org-mode)
+  				   (name . "^\\*Org Src")
+  				   (name . "^\\*Org Agenda\\*$")))
+  	       ("tramp" (name . "^\\*tramp.*"))
+  	       ("emacs" (or
+  					 (name . "^\\*scratch\\*$")
+  					 (name . "^\\*Messages\\*$")
+  					 (name . "^\\*Warnings\\*$")
+  					 (name . "^\\*Shell Command Output\\*$")
+  					 (name . "^\\*Async-native-compile-log\\*$")
+  					 (name . "^\\*straight-")))
+  	       ("ediff" (or
+  					 (name . "^\\*ediff.*")
+  					 (name . "^\\*Ediff.*")))
+  	       ("dired" (mode . dired-mode))
+  	       ("terminal" (or
+  						(mode . term-mode)
+  						(mode . shell-mode)
+  						(mode . eshell-mode)))
+  	       ("help" (or
+  					(name . "^\\*Help\\*$")
+  					(name . "^\\*info\\*$")
+  					(name . "^\\*helpful"))))))
+    (add-hook 'ibuffer-mode-hook
+  			(lambda ()
+  		      (ibuffer-switch-to-saved-filter-groups "default")))
+    (setq ibuffer-show-empty-filter-groups nil) ; don't show empty groups
+    :init
+    (set-window-margins (selected-window) 2 0)
+
+    (toggle-frame-maximized)
+    (select-frame-set-input-focus (selected-frame))
+    (global-auto-revert-mode 1)
+    (indent-tabs-mode -1)
+    (recentf-mode 1)
+    (repeat-mode 1)
+    (savehist-mode 1)
+    (save-place-mode 1)
+    (winner-mode)
+    (xterm-mouse-mode 1)
+    (file-name-shadow-mode 1) ; allows us to type a new path without having to delete the current one
+
+    (with-current-buffer (get-buffer-create "*scratch*")
+      (insert (format ";;
+  ;; ███████╗███╗   ███╗ █████╗  ██████╗███████╗
+  ;; ██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝
+  ;; █████╗  ██╔████╔██║███████║██║     ███████╗
+  ;; ██╔══╝  ██║╚██╔╝██║██╔══██║██║     ╚════██║
+  ;; ███████╗██║ ╚═╝ ██║██║  ██║╚██████╗███████║
+  ;; ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
+  ;;   Loading time : %s
+  ;;   Packages     : %s
+  ;;
+  "
+  					(emacs-init-time)
+  					(number-to-string (length package-activated-list)))))
+
+    (message (emacs-init-time)))
+#+END_SRC
+
+** Which-Key
+#+BEGIN_SRC elisp
+  (use-package which-key
+    :defer t
+    :ensure nil
+    :hook
+    (after-init-hook . which-key-mode)
+    :config
+    (setq which-key-separator "  ")
+    (setq which-key-prefix-prefix "... ")
+    (setq which-key-max-display-columns 3)
+    (setq which-key-idle-delay 1.5)
+    (setq which-key-idle-secondary-delay 0.25)
+    (setq which-key-add-column-padding 1)
+    (setq which-key-max-description-length 40))
+#+END_SRC
+
+** Simple Rainbow Delimiters
+#+BEGIN_SRC elisp
+  ;;; EMACS-SOLO-RAINBOW-DELIMITERS
+  ;;
+  ;;  Colorizes matching delimiters
+  ;;
+  ;;  FIXME: Make it play nice with treesitter modes
+  ;;
+  (use-package emacs-solo-rainbow-delimiters
+    :ensure nil
+    :no-require t
+    :defer t
+    :init
+    (defun emacs-solo/rainbow-delimiters ()
+      "Apply simple rainbow coloring to parentheses, brackets, and braces in the current buffer.
+  Opening and closing delimiters will have matching colors."
+      (interactive)
+      (let ((colors '(font-lock-keyword-face
+                      font-lock-type-face
+                      font-lock-function-name-face
+                      font-lock-variable-name-face
+                      font-lock-constant-face
+                      font-lock-builtin-face
+                      font-lock-string-face
+                      )))
+        (font-lock-add-keywords
+         nil
+         `((,(rx (or "(" ")" "[" "]" "{" "}"))
+            (0 (let* ((char (char-after (match-beginning 0)))
+                      (depth (save-excursion
+                               ;; Move to the correct position based on opening/closing delimiter
+                               (if (member char '(?\) ?\] ?\}))
+                                   (progn
+                                     (backward-char) ;; Move to the opening delimiter
+                                     (car (syntax-ppss)))
+                                 (car (syntax-ppss)))))
+                      (face (nth (mod depth ,(length colors)) ',colors)))
+                 (list 'face face)))))))
+      (font-lock-flush)
+      (font-lock-ensure))
+
+    (add-hook 'prog-mode-hook #'emacs-solo/rainbow-delimiters))
+#+END_SRC
+
+** Viper Configuration
+#+BEGIN_SRC elisp
+  (use-package viper
+    :ensure nil
+    :init
+    (setq viper-mode t)
+    (setq viper-inhibit-startup-message t)
+    (setq viper-expert-level 5)
+    (setq viper-want-ctl-h-help t)
+    (setq viper-ex-style-editing nil)
+    (setq viper-no-multiple-ESC nil)
+    (setq viper-syntax-preference 'extended)
+    (setq viper-vi-style-in-minibuffer nil)
+    (require 'viper))
+
+  ;; from emacs-solo repository
+  (use-package emacs-solo-viper-extensions
+    :ensure nil
+    :no-require t
+    :defer t
+    :after viper
+    :init
+    (defun viper-operate-inside-delimiters (open close op)
+      "Perform OP inside delimiters OPEN and CLOSE (e.g., (), {}, '', or \"\")."
+      (save-excursion
+        (search-backward (char-to-string open) nil t)
+        (forward-char) ;; Move past the opening delimiter
+        (let ((start (point)))
+          (search-forward (char-to-string close) nil t)
+          (backward-char) ;; Move back before the closing delimiter
+          (pulse-momentary-highlight-region start (point))
+          (funcall op start (point)))))
+
+    ;; FIXME: works for most common cases, misses (  bla bla (bla) |cursor-here| )
+    (defun viper-delete-inside-delimiters (open close)
+      "Delete text inside delimiters OPEN and CLOSE, saving it to the kill ring."
+      (interactive "cEnter opening delimiter: \ncEnter closing delimiter: ")
+      (viper-operate-inside-delimiters open close 'kill-region))
+
+    (defun viper-yank-inside-delimiters (open close)
+      "Copy text inside delimiters OPEN and CLOSE to the kill ring."
+      (interactive "cEnter opening delimiter: \ncEnter closing delimiter: ")
+      (viper-operate-inside-delimiters open close 'kill-ring-save))
+
+    (defun viper-delete-line-or-region ()
+      "Delete the current line or the selected region in Viper mode.
+        The deleted text is saved to the kill ring."
+      (interactive)
+      (if (use-region-p)
+          ;; If a region is active, delete it
+          (progn
+        	  (pulse-momentary-highlight-region (region-beginning) (region-end))
+        	  (run-at-time 0.1 nil 'kill-region (region-beginning) (region-end)))
+        ;; Otherwise, delete the current line including its newline character
+        (pulse-momentary-highlight-region (line-beginning-position) (line-beginning-position 2))
+        (run-at-time 0.1 nil 'kill-region (line-beginning-position) (line-beginning-position 2))))
+
+    (defun viper-yank-line-or-region ()
+      "Yank the current line or the selected region and highlight the region."
+      (interactive)
+      (if (use-region-p)
+        	;; If a region is selected, yank it
+        	(progn
+            (kill-ring-save (region-beginning) (region-end))  ;; Yank the region
+            (pulse-momentary-highlight-region (region-beginning) (region-end)))
+        ;; Otherwise, yank the current line
+        (let ((start (line-beginning-position))
+        		(end (line-end-position)))
+        	(kill-ring-save start end)  ;; Yank the current line
+        	(pulse-momentary-highlight-region start end))))
+
+    (defun viper-delete-inner-word ()
+      "Delete the current word under the cursor, handling edge cases."
+      (interactive)
+      (let ((bounds (bounds-of-thing-at-point 'word)))
+        (if bounds
+            (kill-region (car bounds) (cdr bounds))
+          (message "No word under cursor"))))
+
+    (defun viper-change-inner-word ()
+      "Change the current word under the cursor, handling edge cases."
+      (interactive)
+      (viper-delete-inner-word)
+      (viper-insert nil))
+
+    (defun viper-yank-inner-word ()
+      "Yank (copy) the current word under the cursor, handling edge cases."
+      (interactive)
+      (let ((bounds (bounds-of-thing-at-point 'word)))
+        (pulse-momentary-highlight-region (car bounds) (cdr bounds))
+        (if bounds
+            (kill-ring-save (car bounds) (cdr bounds))
+          (message "No word under cursor"))))
+
+    (defun viper-delete-inner-compound-word ()
+      "Delete the entire compound word under the cursor, including `-` and `_`."
+      (interactive)
+      (let ((bounds (viper-compound-word-bounds)))
+        (if bounds
+            (kill-region (car bounds) (cdr bounds))
+          (message "No compound word under cursor"))))
+
+    (defun viper-change-inner-compound-word ()
+      "Change the entire compound word under the cursor, including `-` and `_`."
+      (interactive)
+      (viper-delete-inner-compound-word)
+      (viper-insert nil))
+
+    (defun viper-yank-inner-compound-word ()
+      "Yank the entire compound word under the cursor into the kill ring."
+      (interactive)
+      (let ((bounds (viper-compound-word-bounds)))
+        (pulse-momentary-highlight-region (car bounds) (cdr bounds))
+        (if bounds
+            (kill-ring-save (car bounds) (cdr bounds))
+          (message "No compound word under cursor"))))
+
+    (defun viper-compound-word-bounds ()
+      "Get the bounds of a compound word under the cursor.
+      A compound word includes letters, numbers, `-`, and `_`."
+      (save-excursion
+        (let* ((start (progn
+                        (skip-chars-backward "a-zA-Z0-9_-")
+                        (point)))
+               (end (progn
+                      (skip-chars-forward "a-zA-Z0-9_-")
+                      (point))))
+          (when (< start end) (cons start end)))))
+
+    (defun viper-visual-select-line ()
+  	"Start visual selection from the beginning of the current line."
+  	(interactive)
+  	(set-mark (line-beginning-position)))
+
+    (defun knavemacs/scroll-down-half-page ()
+  	"scroll down half a page while keeping the cursor centered"
+  	(interactive)
+  	(let ((ln (line-number-at-pos (point)))
+  		  (lmax (line-number-at-pos (point-max))))
+  	  (cond ((= ln 1) (move-to-window-line nil))
+  			((= ln lmax) (recenter (window-end)))
+  			(t (progn
+  				 (move-to-window-line -1)
+  				 (recenter))))))
+
+    (defun knavemacs/scroll-up-half-page ()
+  	"scroll up half a page while keeping the cursor centered"
+  	(interactive)
+  	(let ((ln (line-number-at-pos (point)))
+  		  (lmax (line-number-at-pos (point-max))))
+  	  (cond ((= ln 1) nil)
+  			((= ln lmax) (move-to-window-line nil))
+  			(t (progn
+  				 (move-to-window-line 0)
+  				 (recenter))))))
+
+    ;; Delete inside delimiters
+    (define-key viper-vi-global-user-map (kbd "di(") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
+    (define-key viper-vi-global-user-map (kbd "dib") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
+    (define-key viper-vi-global-user-map (kbd "di{") (lambda () (interactive) (viper-delete-inside-delimiters ?{ ?})))
+    (define-key viper-vi-global-user-map (kbd "di\"") (lambda () (interactive) (viper-delete-inside-delimiters ?\" ?\")))
+    (define-key viper-vi-global-user-map (kbd "di'") (lambda () (interactive) (viper-delete-inside-delimiters ?' ?')))
+
+    ;; Yank inside delimiters
+    (define-key viper-vi-global-user-map (kbd "yi(") (lambda () (interactive) (viper-yank-inside-delimiters ?\( ?\))))
+    (define-key viper-vi-global-user-map (kbd "yi{") (lambda () (interactive) (viper-yank-inside-delimiters ?{ ?})))
+    (define-key viper-vi-global-user-map (kbd "yi\"") (lambda () (interactive) (viper-yank-inside-delimiters ?\" ?\")))
+    (define-key viper-vi-global-user-map (kbd "yi'") (lambda () (interactive) (viper-yank-inside-delimiters ?' ?')))
+
+    ;; Delete/Yank current line or region
+    (define-key viper-vi-global-user-map (kbd "dd") 'viper-delete-line-or-region)
+    (define-key viper-vi-global-user-map (kbd "yy") 'viper-yank-line-or-region)
+
+    ;; Delete/Yank current word
+    (define-key viper-vi-global-user-map (kbd "diw") 'viper-delete-inner-word)
+    (define-key viper-vi-global-user-map (kbd "yiw") 'viper-yank-inner-word)
+    (define-key viper-vi-global-user-map (kbd "ciw") 'viper-change-inner-word)
+    (define-key viper-vi-global-user-map (kbd "diW") 'viper-delete-inner-compound-word)
+    (define-key viper-vi-global-user-map (kbd "yiW") 'viper-yank-inner-compound-word)
+    (define-key viper-vi-global-user-map (kbd "ciW") 'viper-change-inner-compound-word)
+
+    ;; visual select and scroll through file
+    (define-key viper-vi-global-user-map (kbd "C-v") 'viper-visual-select-line)
+    (define-key viper-vi-global-user-map (kbd "v") 'knavemacs/scroll-down-half-page)
+    (define-key viper-vi-global-user-map (kbd "V") 'knavemacs/scroll-up-half-page))
+#+END_SRC
