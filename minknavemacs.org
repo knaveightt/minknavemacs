@@ -1,11 +1,21 @@
 * What Is This
-A mashup of my current knavemacs configuration, snippets from
-SystemCrafters, and a lot of copy-paste from LionyxML's emacs-solo
-configuration.  The goal is to minimize the number of external
-packages I pull into emacs.
+A mashup of my current knavemacs configuration, snippets from SystemCrafters,
+and a lot of copy-paste from LionyxML's emacs-solo configuration.  The goal is
+to minimize the number of external packages I pull into emacs while providing a
+fully-fledged emacs configuration to taste.
+
+All that should be needed to run this configuration is the following in the
+init.el file:
+
+: (require 'org)
+: (require 'ob-tangle)
+: (org-babel-load-file "~/.config/emacs/minknavemacs.org")
+
 * Prerequsites
 - ripgrep
 - JetBrainsMono Nerd Font
+- run M-x nerd-icons-install-fonts once
+
 * Configuration
 ** Early Init
 Gracefully picked up from https://github.com/LionyxML/emacs-solo
@@ -101,7 +111,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
      '("SCCS" "RCS" "CVS" "MCVS" ".src" ".svn" ".git" ".hg" ".bzr" "_MTN" "_darcs" "{arch}" "node_modules" "build" "dist"))
     :config
     ;; Font and Theme Configuration
-    (load-theme 'manoj-dark t)
+    (load-theme 'modus-vivendi-tinted t)
     (add-to-list 'default-frame-alist
   			   '(font . "JetBrainsMono NF 12"))
     ;; Set line-number-mode with relative numbering
@@ -400,6 +410,29 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
   	  (call-interactively 'org-time-stamp-inactive))
   	(insert " "))
 
+    ;; https://www.reddit.com/r/emacs/comments/r7l3ar/how_do_you_scroll_half_a_page/
+    (defun minknavemacs/scroll-down-half-page ()
+  	"scroll down half a page while keeping the cursor centered" 
+  	(interactive)
+  	(let ((ln (line-number-at-pos (point)))
+  		  (lmax (line-number-at-pos (point-max))))
+  	  (cond ((= ln 1) (move-to-window-line nil))
+  			((= ln lmax) (recenter (window-end)))
+  			(t (progn
+  				 (move-to-window-line -1)
+  				 (recenter))))))
+
+    (defun minknavemacs/scroll-up-half-page ()
+  	"scroll up half a page while keeping the cursor centered"
+  	(interactive)
+  	(let ((ln (line-number-at-pos (point)))
+  		  (lmax (line-number-at-pos (point-max))))
+  	  (cond ((= ln 1) nil)
+  			((= ln lmax) (move-to-window-line nil))
+  			(t (progn
+  				 (move-to-window-line 0)
+  				 (recenter))))))
+
     ;; Delete inside delimiters
     (define-key viper-vi-global-user-map (kbd "di(") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
     (define-key viper-vi-global-user-map (kbd "dib") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
@@ -428,6 +461,13 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     ;; visual select commands 
     (define-key viper-vi-global-user-map (kbd "v") 'set-mark-command)
     (define-key viper-vi-global-user-map (kbd "V") 'viper-visual-select-line)
+
+    ;; incorporate Avy package
+    (define-key viper-vi-global-user-map (kbd "m") 'avy-goto-char-timer)
+
+    ;; better scrolling commands
+    (define-key viper-vi-global-user-map (kbd "J") 'minknavemacs/scroll-down-half-page)   
+    (define-key viper-vi-global-user-map (kbd "K") 'minknavemacs/scroll-up-half-page)
 
     ;; Go, Jump, Shift, extended commands
     (define-key viper-vi-global-user-map (kbd "g g") 'keyboard-quit)   
@@ -464,337 +504,318 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     (define-key viper-vi-global-user-map (kbd "SPC x c") 'save-buffers-kill-terminal))
 #+END_SRC
 
-** icomplete Completions
+** Mode Line Configuration
 #+BEGIN_SRC elisp
-  ;;; ICOMPLETE
-  (use-package icomplete
-    :bind (:map icomplete-minibuffer-map
-                ("C-j" . icomplete-forward-completions)
-                ("C-k" . icomplete-backward-completions)
-                ("C-v" . icomplete-vertical-toggle)
-                ("RET" . icomplete-force-complete-and-exit)
-                ("C-c" . exit-minibuffer)) ;; So we can exit commands like `multi-file-replace-regexp-as-diff'
-    :hook
-    (after-init-hook . (lambda ()
-                         (fido-mode -1)
-                         (icomplete-vertical-mode 1)))
+  (use-package minknavemacs-mode-line
+    :ensure nil
+    :no-require t
+    :defer t
+    :init
+    ;; ------------MODELINE FACES
+    (defface minknavemacs/modeline-faces-vipermode
+    	'((t :foreground "#cccccc"
+    		 ))
+    	"Default Face"
+    	:group 'minknavemacs/mode-line-faces)
+
+    
+    (defface minknavemacs/modeline-faces-readonly
+    	'((t :foreground "#cccccc"
+    		 ))
+    	"Default Face"
+    	:group 'minknavemacs/mode-line-faces)
+
+    
+    (defface minknavemacs/modeline-faces-modified
+    	'((t :foreground "#cccccc"
+    		 ))
+    	"Default Face"
+    	:group 'minknavemacs/mode-line-faces)
+
+    (defface minknavemacs/modeline-faces-kmacrorec
+    	'((t :foreground "#cccccc"
+    		 ))
+    	"Default Face"
+    	:group 'minknavemacs/mode-line-faces)
+    
+    ;; ------------MODELINE MODULES
+
+    ;; modeline module: viper indicator
+    (defvar-local minknavemacs/modeline-viper-indicator
+    	  '(:eval
+    		(when (mode-line-window-selected-p)
+    		  (propertize (minknavemacs/return-viper-state) 'face 'minknavemacs/modeline-faces-vipermode)))
+    	"Modeline module to show Viper / Emacs state indicator.")
+
+    ;; modeline module: readonly indicator
+    (defvar-local minknavemacs/modeline-readonly-indicator
+        '(:eval
+    		(when buffer-read-only
+            (propertize "" 'face 'minknavemacs/modeline-faces-readonly)))
+    	"Modeline module to provide a readonly indicator for appropriate buffers")
+
+    ;; modeline module: modified indicator
+    (defvar-local minknavemacs/modeline-modified-indicator
+        '(:eval
+    		(when (buffer-modified-p)
+            (propertize "" 'face 'minknavemacs/modeline-faces-modified)))
+    	"Modeline module to provide a modified indicator for appropriate buffers")
+
+    ;; modeline module: buffer name
+    (defvar-local minknavemacs/modeline-bufname
+    	  '(:eval
+    		(propertize (buffer-name) 'help-echo (buffer-file-name)))
+    	"Modeline module to provide the buffer name.")
+
+    ;; modeline module: major mode icon
+    (defvar-local minknavemacs/modeline-major-mode-icon
+        '(:eval
+  		(when (mode-line-window-selected-p)
+            (nerd-icons-icon-for-mode major-mode)))
+  	"Modeline module to provide an icon based on the major mode.")
+
+    ;; modeline module: major mode name
+    (defvar-local minknavemacs/modeline-major-mode-name
+      '(:eval
+        (when (mode-line-window-selected-p)
+          mode-name))
+    "Modeline module to provide major mode name.")
+
+    ;; modeline module: right display
+    (defvar-local minknavemacs/modeline-right-display
+    	  '(""
+    		" L%l:C%c "
+    		"[%p]")
+    	"Modeline module ot provide minimal modeline info aligned right.")
+
+    ;; modeline module: kmacro record indicator
+    (defvar-local minknavemacs/modeline-kmacro-indicator
+    	  '(:eval
+    		(when defining-kbd-macro
+            (propertize " (󰑋 MACRO)" 'face 'minknavemacs/modeline-faces-kmacrorec)))
+    	"Modeline module to provide an indicator for when recording kmacros")
+
+    
+    ;; ------------MODELINE PREPARE VARIABLES
+    (dolist (construct '(minknavemacs/modeline-viper-indicator
+  					   minknavemacs/modeline-readonly-indicator
+    					   minknavemacs/modeline-modified-indicator
+    					   minknavemacs/modeline-bufname
+  					   minknavemacs/modeline-major-mode-icon
+  					   minknavemacs/modeline-major-mode-name
+    					   minknavemacs/modeline-right-display
+    					   minknavemacs/modeline-kmacro-indicator))
+    	(put construct 'risky-local-variable t)) ;; required for modeline local vars
+    
+
+    ;; ------------MODELINE FUNCTIONS
+    (defun minknavemacs/modeline-fill-for-alignment ()
+    	"Modeline module to provide filler space until right-aligned items are added to modeline."
+    	(let ((r-length (length (concat (format-mode-line minknavemacs/modeline-right-display) (format-mode-line minknavemacs/modeline-kmacro-indicator)) )))
+        (propertize " "
+                    'display `(space :align-to (- right ,r-length)))))
+    
+    (defun minknavemacs/return-viper-state ()
+  	"Returns the current viper state, or a default string if void."
+  	(interactive)
+  	(if (not (boundp 'viper-mode-string))
+  		(setq viper-mode-string "<X> "))
+  	(format-mode-line 'viper-mode-string))
+
+
+    ;; ------------MODELINE CONSTRUCTION
+    (setq-default mode-line-format
+    				'("%e"
+    				  " "
+    				  minknavemacs/modeline-viper-indicator
+    				  mode-line-front-space
+    				  minknavemacs/modeline-readonly-indicator
+    				  " "
+    				  minknavemacs/modeline-modified-indicator
+    				  " "
+    				  minknavemacs/modeline-bufname
+    				  " "
+    				  minknavemacs/modeline-major-mode-icon
+    				  " "
+    				  minknavemacs/modeline-major-mode-name
+    				  (:eval (minknavemacs/modeline-fill-for-alignment))
+    				  minknavemacs/modeline-right-display
+    				  minknavemacs/modeline-kmacro-indicator))
+    )
+#+END_SRC
+
+** Org Mode Configuration
+#+BEGIN_SRC elisp
+  (use-package org
     :config
-    (setq icomplete-delay-completions-threshold 0)
-    (setq icomplete-compute-delay 0)
-    (setq icomplete-show-matches-on-no-input t)
-    (setq icomplete-hide-common-prefix nil)
-    (setq icomplete-prospects-height 10)
-    (setq icomplete-separator " . ")
-    (setq icomplete-with-completion-tables t)
-    (setq icomplete-in-buffer t)
-    (setq icomplete-max-delay-chars 0)
-    (setq icomplete-scroll t)
+    (setf (cdr (rassoc 'find-file-other-window org-link-frame-setup)) 'find-file) ; open links in same buffer
+    (setq org-agenda-files (list "~/Documents/org" "~/Documents/org/workstreams"))
+    (setq org-agenda-todo-list-sublevels nil) ;; only want to see top level TODOs in global list
+    (setq org-stuck-projects '("+TODO=\"ACTION\"" ("NEXT")))
+    (setq org-refile-targets '((org-agenda-files :level . 1)))
+    (setq org-todo-keywords
+          '((sequence "BACKLOG(b)" "TODO(t)" "ACTION(a)" "NEXT(x)" "WAITING(w@)" "|" "DONE(d!)" "CANCELLED(c)")
+            (sequence "NOTICE(n)" "|" "RESOLVED(r@)")
+            ))
+    (setq org-todo-keywoard-faces
+          '(("TODO" . "green")
+            ("BACKLOG" . "red")
+            ("ACTION" . "purple")
+            ("NEXT" . "green")
+            ("WAITING" . "yellow")
+            ("DONE" . "blue")
+            ("CANCELLED" . "blue")
+            ("NOTICE" . org-warning)
+            ("RESOLVED" . "green")
+            ))
 
-    ;; EMACS-31
-    (when (and (>= emacs-major-version 31)
-               (boundp 'icomplete-vertical-in-buffer-adjust-list))
+    ;; custom agenda views
+    (setq org-agenda-custom-commands
+          '(
+            ("d" "Todo Dashboard"
+             (
+              (agenda "" ((org-deadline-warning-days 7)))
+              (todo "NOTICE" ((org-agenda-overriding-header "Today's Notices")))
+              (tags "-@step+TODO=\"TODO\"-SCHEDULED={.+}|+@step+TODO=\"NEXT\""
+                         ((org-agenda-overriding-header "Today's Open TODOs")))
+              (stuck "" ((org-agenda-overriding-header "Stuck Actions")))
+              (todo "ACTION" ((org-agenda-overriding-header "In-Progress Actions")))
+              (todo "WAITING" ((org-agenda-overriding-header "Items Being Waited On")))
+              ))
+            ))
 
-      (setq icomplete-vertical-in-buffer-adjust-list t)
-      (setq icomplete-vertical-render-prefix-indicator t)
-      ;; (setq icomplete-vertical-selected-prefix-indicator   " @ ")
-      ;; (setq icomplete-vertical-unselected-prefix-indicator "   ")
-      )
+    ;; capture templates
+    (setq org-capture-templates
+          '(
+            ("n" "Post Notice" entry (file+olp "~/Documents/org/notice.org" "Notices")
+             "* NOTICE %?\n- %U Notice Created" :empty-lines 1)
 
-    (if icomplete-in-buffer
-        (advice-add 'completion-at-point
-                    :after #'minibuffer-hide-completions))
+            ("t" "New Todo" entry (file+olp "~/Documents/org/inbox.org" "TODOs")
+             "* TODO %i%?")
 
-    ;; https://lists.gnu.org/archive/html/bug-gnu-emacs/2025-03/msg02638.html
-    ;;
-    ;; I'm currently proposing these features on bug#75784 (bug-gnu-emacs).
-    ;; If they get accepted we can get rid of this giant block.
-    ;;
-    ;; === FIXME: I'm reviewing it to the icomplete PATCH
+            ("T" "New Scheduled Todo" entry (file+olp "~/Documents/org/tickler.org" "Scheduled TODOs")
+             "* TODO %i%?")
 
-    ;; EMACS-31
-    (when (or (< emacs-major-version 31)
-              (not (boundp 'icomplete-vertical-in-buffer-adjust-list)))
+            ("m" "Meeting Notes" entry (file+olp "~/Documents/org/inbox.org" "Meeting Notes")
+             "* %t %^{Enter Meeting Title}\n** Attendees\n*** \n** Notes\n*** \n** Action Items\n*** TODO " :tree-type week :clock-in t :clock-resume t :empty-lines 0)
+            ))
+    )
+#+END_SRC
 
-      (defface icomplete-vertical-selected-prefix-indicator-face
-        '((t :inherit font-lock-keyword-face :weight bold :foreground "cyan"))
-        "Face used for the prefix set by `icomplete-vertical-selected-prefix-indicator'."
-        :group 'icomplete
-        :version "31.1")
+** External Packages
+I try to limit the inclusion of external packages, but will not shy away from
+using them if they provide a bespoke benefit to my configuration or usage of
+Emacs in general.
 
-      (defface icomplete-vertical-unselected-prefix-indicator-face
-        '((t :inherit font-lock-keyword-face :weight normal :foreground "gray"))
-        "Face used for the prefix set by `icomplete-vertical-unselected-prefix-indicator'."
-        :group 'icomplete
-        :version "31.1")
+*** Package Configuration
+#+BEGIN_SRC elisp
+  ;; define package sources and config
+  (require 'package)
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+  		     ("org" . "https://orgmode.org/elpa/")
+  		     ("elpa" . "https://elpa.gnu.org/packages/")
+  		     ))
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
 
-      (defcustom icomplete-vertical-in-buffer-adjust-list t
-        "Control whether in-buffer completion should align the cursor position.
-  If this is t and `icomplete-in-buffer' is t, and `icomplete-vertical-mode'
-  is activated, the in-buffer vertical completions are shown aligned to the
-  cursor position when the completion started, not on the first column, as
-  the default behaviour."
-        :type 'boolean
-        :group 'icomplete
-        :version "31.1")
+  ;; use-package setup
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+  (require 'use-package)
+#+END_SRC
 
-      (defcustom icomplete-vertical-render-prefix-indicator t
-        "Control whether a indicator is added as a prefix to each candidate.
-  If this is t and `icomplete-vertical-mode' is activated, a indicator,
-  controlled by `icomplete-vertical-selected-prefix-indicator' is shown
-  as a prefix to the current under selection candidate, while the
-  remaining of the candidates will receive the indicator controlled
-  by `icomplete-vertical-unselected-prefix-indicator'."
-        :type 'boolean
-        :group 'icomplete
-        :version "31.1")
+*** Vertico Completions
+#+BEGIN_SRC elisp
+  ;; PURPOSE: minimal completion system in the likes of helm and ivy
+  (use-package vertico
+    :ensure t
+    :bind (:map vertico-map
+                ("C-j" . vertico-next)
+                ("C-k" . vertico-previous)
+                ("C-f" . vertico-exit)
+                :map minibuffer-local-map
+                ("C-h" . backward-kill-word))
+    :custom
+    (vertico-cycle t)
+    :init
+    (vertico-mode))
 
-      (defcustom icomplete-vertical-selected-prefix-indicator "» "
-        "Prefix string used to mark the selected completion candidate.
-  If `icomplete-vertical-render-prefix-indicator' is t, the string
-  defined here is used as a prefix of the currently selected entry in the
-  list.  It can be further customized by the face
-  `icomplete-vertical-selected-prefix-indicator-face'."
-        :type 'string
-        :group 'icomplete
-        :version "31.1")
+  ;; PURPOSE: built in emacs package that works with vertico, show recent completion selections used
+  (use-package savehist
+    :ensure t
+    :init
+    (savehist-mode))
 
-      (defcustom icomplete-vertical-unselected-prefix-indicator "  "
-        "Prefix string used on the unselected completion candidates.
-  If `icomplete-vertical-render-prefix-indicator' is t, the string
-  defined here is used as a prefix for all unselected entries in the list.
-  list.  It can be further customized by the face
-  `icomplete-vertical-unselected-prefix-indicator-face'."
-        :type 'string
-        :group 'icomplete
-        :version "31.1")
+  ;; PURPOSE: provides extra metadata in margins of vertico completions
+  (use-package marginalia
+    :ensure t
+    :after vertico
+    :custom
+    (marginalia-annotators '(marginalia-annotators-heavy marginalia-annotators-light nil))
+    :init
+    (marginalia-mode))
 
-      ;; FIXME: make this into PATCH - OK
-      (defun icomplete-vertical--adjust-lines-for-column (lines buffer data)
-        "Adjust the LINES to align with the column in BUFFER based on DATA."
-        (if icomplete-vertical-in-buffer-adjust-list
-            (let* ((column (current-column))
-                   (prefix-indicator-width
-                    (if icomplete-vertical-render-prefix-indicator
-                        (max (length icomplete-vertical-selected-prefix-indicator)
-                             (length icomplete-vertical-unselected-prefix-indicator))
-                      0))
-                   (wrapped-line (with-current-buffer buffer
-                                   (save-excursion
-                                     (goto-char (car data))
-                                     (beginning-of-line)
-                                     (count-screen-lines (point) (car data)))))
-                   (window-width (+ (window-hscroll) (window-body-width)))
-                   (longest-line-width (apply #'max (mapcar #'length lines)))
-                   (spaces-to-add
-                    (if (> wrapped-line 1)
-                        (- column (* (- wrapped-line 1) (- window-width 5)))
-                      column))
-                   (spaces-to-add-avoiding-scrolling
-                    (if (>= (+ spaces-to-add longest-line-width prefix-indicator-width) window-width)
-                        (- spaces-to-add longest-line-width)
-                      spaces-to-add)))
+  ;; PURPOSE: provides and orderless algorithm for fuzzy finding
+  (use-package orderless
+    :ensure t
+    :custom
+    (completion-styles '(orderless basic))
+    (completion-category-overrides '((file (styles basic partial-completion)))))
+#+END_SRC
 
-              (mapcar (lambda (line)
-                        (concat (make-string spaces-to-add-avoiding-scrolling ?\s) line))
-                      lines))
-          lines))
+*** Nerd Icons
+I use nerd icons to leverage the full capabilities of the fonts I choose to use
+in both the terminal as well as GUI Emacs. Alongside the base package, I use
+some other companion packages to add some visual eyecandy to various places.
+#+BEGIN_SRC elisp
+  ;; PACKAGE: nerd-icons
+  ;; PURPOSE: fancy icons in GUI and terminal emacs
+  (use-package nerd-icons
+    :ensure t
+    )
 
-      ;; FIXME: what to demo/test:
-      ;;
-      ;; This patch provides two more new features, which improves icomplete-vertical-mode, 1 and 2,
-      ;; explained below:
-      ;;
-      ;;
-      ;; 1.) Improve feature provided by `icomplete-in-buffer'.
-      ;;     If user, besides setting `icomplete-in-buffer' to t, also set the
-      ;;     new `icomplete-vertical-in-buffer-adjust-list' to t, the following are fixed/ improved:
-      ;;
-      ;; Without the new `icomplete-vertical-in-buffer-adjust-list':
-      ;; - [ ] wrapped lines   - completion candidates on different columns always shows candidates at column 0
-      ;; - [ ] wrapped lines   - completion candidates on different lines always shows candidates at column 0
-      ;; - [ ] wrapped lines   - completion candidates close to the end of buffer won't be printed
-      ;; - [ ] truncated lines - completion candidates on different columns always shows candidates at column 0
-      ;; - [ ] truncated lines - completion candidates on horizontally scrolled windows won't appear on buffer
-      ;;                         as they're on column 0
-      ;; - [ ] truncated lines - completion candidates close to the end of buffer wont be shown
-      ;;
-      ;;
-      ;; With the new `icomplete-vertical-in-buffer-adjust-list':
-      ;; - [ ] wrapped lines   - fix    : completion candidates on different columns will always be printed
-      ;;                                  under the cursor
-      ;; - [ ] wrapped lines   - feature: completion candidates on different columns close to the end
-      ;;                                  of the buffer will adjust so they stay visible
-      ;; - [ ] wrapped lines   - fix:   : completion candidates on different lines always be printed under
-      ;;                                  the cursor
-      ;; - [ ] wrapped lines   - fix    : if icomplete-prospects-height won't fit from current line to the
-      ;;                                  end of vertical space, our window will be scrolled so we have at
-      ;;                                  least this amount of lines. This ensures our candidates list is
-      ;;                                  always visible
-      ;; - [ ] truncated lines - fix    : completion candidates on different columns will always be printed
-      ;;                                  under the cursor
-      ;; - [ ] truncated lines - feature: completion candidates on different columns close to the end
-      ;;                                  of the buffer will adjust so they stay visible even when we scroll
-      ;;                                  horizontally
-      ;; - [ ] truncated lines - feature: completion candidates on horizontally scrolled windows will be
-      ;;                                  printed under the cursor
-      ;; - [ ] wrapped lines   - feature: if icomplete-prospects-height won't fit from current line to the
-      ;;                                  end of vertical space, our window will be scrolled so we have at
-      ;;                                  least this amount of lines. This ensures our candidates list is
-      ;;                                  always visible
-      ;; - [ ] from wrapped    - feature: if we are on wrapped lines and manually horiontal scroll, the lines
-      ;;       to truncated               will become automatically truncated, in this case, all the features
-      ;;                                  above still works from either mode (wrapped or truncated).
-      ;;
-      ;;
-      ;; 2.) Implements new feature which provides customizable prefix indicators
-      ;;
-      ;; Setting `icomplete-vertical-render-prefix-indicator' to t will provide a prefix indicator
-      ;; to indicate the current selected candidate, by default "» ".
-      ;;
-      ;; This prefix is customizable through the variable `icomplete-vertical-selected-prefix-indicator'
-      ;; and de face `icomplete-vertical-selected-prefix-indicator-face'.
-      ;;
-      ;; Users can also customize an indicator to the not selected candidates trhough the use of
-      ;; the variable `icomplete-vertical-unselected-prefix-indicator', by default: "  ", and the face
-      ;; `icomplete-vertical-unselected-prefix-indicator-face'.
-      ;;
+  ;; PACKAGE: nerd-icons-completion
+  ;; PURPOSE: fancy icons in completion buffers
+  (use-package nerd-icons-completion
+    :ensure t
+    :after vertico marginalia nerd-icons
+    :config
+    (nerd-icons-completion-mode)
+    (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
 
+  ;; PACKAGE: nerd-icons-dired
+  ;; PURPOSE: fancy icons in dired buffers
+  (use-package nerd-icons-dired
+    :ensure t
+    :init (add-hook 'dired-mode-hook #'nerd-icons-dired-mode))
 
-      ;; FIXME: remove this after patch
-      (defun icomplete-vertical--ensure-visible-lines-inside-buffer ()
-        "Ensure the completion list is visible in regular buffers only.
-  Scrolls the screen to be at least `icomplete-prospects-height' real lines
-  away from the bottom.  Counts wrapped lines as real lines."
-        (unless (minibufferp)
-          (let* ((window-height (window-body-height))
-                 (current-line (count-screen-lines (window-start) (point)))
-                 (lines-to-bottom (- window-height current-line)))
-            (when (< lines-to-bottom icomplete-prospects-height)
-              (scroll-up (- icomplete-prospects-height lines-to-bottom))))))
+  ;; PACKAGE: nerd-icons-ibuffer
+  ;; PURPOSE: fancy icons in ibuffer
+  (use-package nerd-icons-ibuffer
+    :ensure t
+    :init (add-hook 'ibuffer-mode-hook #'nerd-icons-ibuffer-mode))
+#+END_SRC
 
+*** Avy Jump to Point
+#+BEGIN_SRC elisp
+  ;; Install Avy - jump to location based on char decision tree
+  (use-package avy
+    :ensure t
+    :config
+    ;; define an avy action to kill a while line based on a selection
+    ;; (see https://karthinks.com/software/avy-can-do-anything/)
+    (defun avy-action-kill-whole-line (pt)
+      (save-excursion
+  	(goto-char pt)
+  	(kill-whole-line))
+      (select-window
+       (cdr
+  	(ring-ref avy-ring 0)))
+      t)
 
-      (defun icomplete-vertical--add-indicator-to-selected (comp)
-        "Add indicators to the selected/unselected COMP completions."
-        (if (and icomplete-vertical-render-prefix-indicator
-                 (get-text-property 0 'icomplete-selected comp))
-            (concat (propertize icomplete-vertical-selected-prefix-indicator
-                                'face 'icomplete-vertical-selected-prefix-indicator-face)
-                    comp)
-          (concat (propertize icomplete-vertical-unselected-prefix-indicator
-                              'face 'icomplete-vertical-unselected-prefix-indicator-face)
-                  comp)))
-
-
-      (cl-defun icomplete--render-vertical
-          (comps md &aux scroll-above scroll-below
-                 (total-space ; number of mini-window lines available
-                  (1- (min
-                       icomplete-prospects-height
-                       (truncate (max-mini-window-lines) 1)))))
-        ;; Welcome to loopapalooza!
-        ;;
-        ;; First, be mindful of `icomplete-scroll' and manual scrolls.  If
-        ;; `icomplete--scrolled-completions' and `icomplete--scrolled-past'
-        ;; are:
-        ;;
-        ;; - both nil, there is no manual scroll;
-        ;; - both non-nil, there is a healthy manual scroll that doesn't need
-        ;;   to be readjusted (user just moved around the minibuffer, for
-        ;;   example);
-        ;; - non-nil and nil, respectively, a refiltering took place and we
-        ;;   may need to readjust them to the new filtered `comps'.
-        (when (and icomplete-scroll                                    ;; FIXME: remove this after patch
-                   (not icomplete--scrolled-completions)
-                   (not icomplete--scrolled-past))
-          (icomplete-vertical--ensure-visible-lines-inside-buffer))
-        (when (and icomplete-scroll
-                   icomplete--scrolled-completions
-                   (null icomplete--scrolled-past))
-          (icomplete-vertical--ensure-visible-lines-inside-buffer)     ;; FIXME: remove this after patch
-          (cl-loop with preds
-                   for (comp . rest) on comps
-                   when (equal comp (car icomplete--scrolled-completions))
-                   do
-                   (setq icomplete--scrolled-past preds
-                         comps (cons comp rest))
-                   (completion--cache-all-sorted-completions
-                    (icomplete--field-beg)
-                    (icomplete--field-end)
-                    comps)
-                   and return nil
-                   do (push comp preds)
-                   finally (setq icomplete--scrolled-completions nil)))
-        ;; Then, in this pretty ugly loop, collect completions to display
-        ;; above and below the selected one, considering scrolling
-        ;; positions.
-        (cl-loop with preds = icomplete--scrolled-past
-                 with succs = (cdr comps)
-                 with space-above = (- total-space
-                                       1
-                                       (cl-loop for (_ . r) on comps
-                                                repeat (truncate total-space 2)
-                                                while (listp r)
-                                                count 1))
-                 repeat total-space
-                 for neighbor = nil
-                 if (and preds (> space-above 0)) do
-                 (push (setq neighbor (pop preds)) scroll-above)
-                 (cl-decf space-above)
-                 else if (consp succs) collect
-                 (setq neighbor (pop succs)) into scroll-below-aux
-                 while neighbor
-                 finally (setq scroll-below scroll-below-aux))
-        ;; Halfway there...
-        (let* ((selected (propertize (car comps) 'icomplete-selected t))
-               (chosen (append scroll-above (list selected) scroll-below))
-               (tuples (icomplete--augment md chosen))
-               max-prefix-len max-comp-len lines nsections)
-          (add-face-text-property 0 (length selected)
-                                  'icomplete-selected-match 'append selected)
-          ;; Figure out parameters for horizontal spacing
-          (cl-loop
-           for (comp prefix) in tuples
-           maximizing (length prefix) into max-prefix-len-aux
-           maximizing (length comp) into max-comp-len-aux
-           finally (setq max-prefix-len max-prefix-len-aux
-                         max-comp-len max-comp-len-aux))
-          ;; Serialize completions and section titles into a list
-          ;; of lines to render
-          (cl-loop
-           for (comp prefix suffix section) in tuples
-           when section
-           collect (propertize section 'face 'icomplete-section) into lines-aux
-           and count 1 into nsections-aux
-           for comp = (icomplete-vertical--add-indicator-to-selected comp)
-           when (get-text-property 0 'icomplete-selected comp)
-           do (add-face-text-property 0 (length comp)
-                                      'icomplete-selected-match 'append comp)
-           collect (concat prefix
-                           (make-string (max 0 (- max-prefix-len (length prefix))) ? )
-                           (completion-lazy-hilit comp)
-                           (make-string (max 0 (- max-comp-len (length comp))) ? )
-                           suffix)
-           into lines-aux
-           finally (setq lines lines-aux
-                         nsections nsections-aux))
-          ;; Kick out some lines from the beginning due to extra sections.
-          ;; This hopes to keep the selected entry more or less in the
-          ;; middle of the dropdown-like widget when `icomplete-scroll' is
-          ;; t.  Funky, but at least I didn't use `cl-loop'
-          (setq lines
-                (nthcdr
-                 (cond ((<= (length lines) total-space) 0)
-                       ((> (length scroll-above) (length scroll-below)) nsections)
-                       (t (min (ceiling nsections 2) (length scroll-above))))
-                 lines))
-          (when icomplete--in-region-buffer
-            (setq lines (icomplete-vertical--adjust-lines-for-column
-                         lines icomplete--in-region-buffer completion-in-region--data)))
-          ;; At long last, render final string return value.  This may still
-          ;; kick out lines at the end.
-          (concat " \n"
-                  (cl-loop for l in lines repeat total-space concat l concat "\n")))))
-
-    ;; end use-package
+    ;; add custom avy actions to the action dispatcher
+    (setf (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line
+  		)
     )
 #+END_SRC
