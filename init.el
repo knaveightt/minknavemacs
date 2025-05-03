@@ -1,6 +1,7 @@
 (require 'org)
 (require 'ob-tangle)
-(org-babel-load-file "~/auxiliary/other/emacs-30.1/bin/minknavemacs/minknavemacs.org")
+(org-babel-load-file "~/.config/emacs/minknavemacs.org")
+(if (eq system-type 'gnu/linux) (shell-command "notify-send 'Emacs Configuration Loaded'"))
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
