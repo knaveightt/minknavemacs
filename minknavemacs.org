@@ -4,8 +4,12 @@ and a lot of copy-paste from LionyxML's emacs-solo configuration.  The goal is
 to minimize the number of external packages I pull into emacs while providing a
 fully-fledged emacs configuration to taste.
 
-All that should be needed to run this configuration is the following in the
-init.el file:
+This also includes a custom modal editing scheme I created leveraging
+ryo-modal which I hope to make more formal in the future as well.
+
+All that should be needed to run this configuration is the following
+in the init.el file (although I include a sample init.el file in this
+repository as well):
 
 : (require 'org)
 : (require 'ob-tangle)
@@ -15,6 +19,7 @@ init.el file:
 - ripgrep
 - JetBrainsMono Nerd Font
 - move 'snippets' folder to ~/Documents/data/snippets
+- ensure 'modal' folder is in ~/.config/emacs/
 - Create the following under ~/Documents/org/
   - notice.org
   - ticker.org
@@ -484,12 +489,20 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
               (agenda "" ((org-deadline-warning-days 7)))
               (todo "NOTICE" ((org-agenda-overriding-header "Today's Notices")))
               (tags "-@step+TODO=\"TODO\"-SCHEDULED={.+}|+@step+TODO=\"NEXT\""
-                         ((org-agenda-overriding-header "Today's Open TODOs")))
+                    ((org-agenda-overriding-header "Today's Open TODOs")))
               (stuck "" ((org-agenda-overriding-header "Stuck Actions")))
               (todo "ACTION" ((org-agenda-overriding-header "In-Progress Actions")))
               (todo "WAITING" ((org-agenda-overriding-header "Items Being Waited On")))
               ))
             ))
+
+    ;; org function for printing out a quick timestamp
+    (defun minknavemacs/org-quick-time-stamp-inactive ()
+  	"Insert an inactive time stamp of the current time without user prompt"
+  	(interactive)
+  	(let ((current-prefix-arg '(16)))
+  	  (call-interactively 'org-time-stamp-inactive))
+  	(insert " "))
 
     ;; capture templates
     (setq org-capture-templates
@@ -868,6 +881,16 @@ Emacs in general.
     (define-key ctl-x-map (kbd "s") #'(lambda () (interactive) (if ryo-modal-mode (save-buffer) (save-some-buffers))))
     (define-key ctl-x-map (kbd "f") #'minknavemacs/modal-find-file) ;; needs to be called interactively
     (define-key ctl-x-map (kbd "c") #'save-buffers-kill-terminal)
+
+    (ryo-modal-key
+     "SPC" '(("SPC" switch-to-buffer)
+  		   ("k" kill-current-buffer)
+  		   ("b b" ibuffer)
+  		   ("b k" kill-buffer)
+  		   ("o c" org-capture)
+  		   ("o a" org-agenda)
+  		   ("o t" minknavemacs/org-quick-time-stamp-inactive)
+  		   ("o l" org-store-link)))
     
     (ryo-modal-keys
      ("," minknavemacs/scroll-up-half-page)
@@ -877,7 +900,6 @@ Emacs in general.
      ("{" backward-paragraph)
      ("}" forward-paragraph)
      (";" ryo-modal-repeat)
-
      ("a" beginning-of-line :exit t)
      ("A" end-of-line :exit t)
      ("b" backward-word)
@@ -911,7 +933,8 @@ Emacs in general.
      ("L" end-of-line)
      ("m" avy-goto-char-timer)
      ("M" move-to-window-line-top-bottom)
-     ;; TODO n key actions with expand-region.el
+     ("n" er/expand-region)
+     ("N" er/contract-region)
      ("o" minknavemacs/modal-open-line-below :exit t)
      ("O" minknavemacs/modal-open-line-above :exit t)
      ("p"
@@ -1093,6 +1116,13 @@ some other companion packages to add some visual eyecandy to various places.
     ;; add custom avy actions to the action dispatcher
     (setf (alist-get ?K avy-dispatch-alist) 'avy-action-kill-whole-line
   		)
+    )
+#+END_SRC
+
+**** Expand Region
+#+BEGIN_SRC emacs-lisp
+  (use-package expand-region
+    :ensure t
     )
 #+END_SRC
 
