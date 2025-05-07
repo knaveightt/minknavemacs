@@ -318,12 +318,11 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     :defer t
     :init
     ;; ------------MODELINE FACES
-    (defface minknavemacs/modeline-faces-vipermode
+    (defface minknavemacs/modeline-faces-modal
     	'((t :foreground "#cccccc"
     		 ))
     	"Default Face"
     	:group 'minknavemacs/mode-line-faces)
-
     
     (defface minknavemacs/modeline-faces-readonly
     	'((t :foreground "#cccccc"
@@ -346,12 +345,12 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     
     ;; ------------MODELINE MODULES
 
-    ;; modeline module: viper indicator
-    (defvar-local minknavemacs/modeline-viper-indicator
+    ;; modeline module: modal indicator
+    (defvar-local minknavemacs/modeline-modal-indicator
     	  '(:eval
     		(when (mode-line-window-selected-p)
-    		  (propertize (minknavemacs/return-viper-state) 'face 'minknavemacs/modeline-faces-vipermode)))
-    	"Modeline module to show Viper / Emacs state indicator.")
+    		  (propertize (minknavemacs/return-modal-state) 'face 'minknavemacs/modeline-faces-modal)))
+    	"Modeline module to show modal / Emacs state indicator.")
 
     ;; modeline module: readonly indicator
     (defvar-local minknavemacs/modeline-readonly-indicator
@@ -403,7 +402,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
 
     
     ;; ------------MODELINE PREPARE VARIABLES
-    (dolist (construct '(minknavemacs/modeline-viper-indicator
+    (dolist (construct '(minknavemacs/modeline-modal-indicator
   					   minknavemacs/modeline-readonly-indicator
     					   minknavemacs/modeline-modified-indicator
     					   minknavemacs/modeline-bufname
@@ -421,19 +420,20 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
         (propertize " "
                     'display `(space :align-to (- right ,r-length)))))
     
-    (defun minknavemacs/return-viper-state ()
+    (defun minknavemacs/return-modal-state ()
   	"Returns the current viper state, or a default string if void."
   	(interactive)
-  	(if (not (boundp 'viper-mode-string))
-  		(setq viper-mode-string "<X> "))
-  	(format-mode-line 'viper-mode-string))
+  	(if ryo-modal-mode
+  		(setq modal-mode-string "MODAL")
+  	  (setq modal-mode-string "EMACS"))
+  	  (format-mode-line 'modal-mode-string))
 
 
     ;; ------------MODELINE CONSTRUCTION
     (setq-default mode-line-format
     				'("%e"
     				  " "
-    				  minknavemacs/modeline-viper-indicator
+    				  minknavemacs/modeline-modal-indicator
     				  mode-line-front-space
     				  minknavemacs/modeline-readonly-indicator
     				  " "
@@ -681,6 +681,13 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     (defvar emacs-solo-ace-window/quick-window-overlays nil
       "List of overlays used to temporarily display window labels.")
 
+    (defun minknavemacs/quick-window-jump ()
+  	"If there are only two windows, jump to the other. Otherwise, initiate quick jumping."
+  	(interactive)
+  	(if (= (length (window-list)) 2)
+  		(call-interactively 'other-window)
+  	  (emacs-solo-ace-window/quick-window-jump)))
+    
     (defun emacs-solo-ace-window/quick-window-jump ()
       "Jump to a window by typing its assigned character label.
   Windows are labeled starting from the top-left window and proceeding top to bottom, then left to right."
@@ -792,263 +799,6 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
 #+END_SRC
 
 ** Keybindings
-*** Viper Configuration
-#+BEGIN_SRC elisp
-  (use-package viper
-    :ensure nil
-    :init
-    (setq viper-mode t)
-    (setq viper-inhibit-startup-message t)
-    (setq viper-expert-level 5)
-    (setq viper-want-ctl-h-help t)
-    (setq viper-ex-style-editing nil)
-    (setq viper-no-multiple-ESC nil)
-    (setq viper-syntax-preference 'extended)
-    (setq viper-vi-style-in-minibuffer nil)
-    (require 'viper))
-
-  ;; from emacs-solo repository
-  (use-package emacs-solo-viper-extensions
-    :ensure nil
-    :no-require t
-    :defer t
-    :after viper
-    :init
-    (defun viper-operate-inside-delimiters (open close op)
-      "Perform OP inside delimiters OPEN and CLOSE (e.g., (), {}, '', or \"\")."
-      (save-excursion
-        (search-backward (char-to-string open) nil t)
-        (forward-char) ;; Move past the opening delimiter
-        (let ((start (point)))
-          (search-forward (char-to-string close) nil t)
-          (backward-char) ;; Move back before the closing delimiter
-          (pulse-momentary-highlight-region start (point))
-          (funcall op start (point)))))
-
-    ;; FIXME: works for most common cases, misses (  bla bla (bla) |cursor-here| )
-    (defun viper-delete-inside-delimiters (open close)
-      "Delete text inside delimiters OPEN and CLOSE, saving it to the kill ring."
-      (interactive "cEnter opening delimiter: \ncEnter closing delimiter: ")
-      (viper-operate-inside-delimiters open close 'kill-region))
-
-    (defun viper-yank-inside-delimiters (open close)
-      "Copy text inside delimiters OPEN and CLOSE to the kill ring."
-      (interactive "cEnter opening delimiter: \ncEnter closing delimiter: ")
-      (viper-operate-inside-delimiters open close 'kill-ring-save))
-
-    (defun viper-delete-line-or-region ()
-      "Delete the current line or the selected region in Viper mode.
-        The deleted text is saved to the kill ring."
-      (interactive)
-      (if (use-region-p)
-          ;; If a region is active, delete it
-          (progn
-        	  (pulse-momentary-highlight-region (region-beginning) (region-end))
-        	  (run-at-time 0.1 nil 'kill-region (region-beginning) (region-end)))
-        ;; Otherwise, delete the current line including its newline character
-        (pulse-momentary-highlight-region (line-beginning-position) (line-beginning-position 2))
-        (run-at-time 0.1 nil 'kill-region (line-beginning-position) (line-beginning-position 2))))
-
-    (defun viper-yank-line-or-region ()
-      "Yank the current line or the selected region and highlight the region."
-      (interactive)
-      (if (use-region-p)
-        	;; If a region is selected, yank it
-        	(progn
-            (kill-ring-save (region-beginning) (region-end))  ;; Yank the region
-            (pulse-momentary-highlight-region (region-beginning) (region-end)))
-        ;; Otherwise, yank the current line
-        (let ((start (line-beginning-position))
-        		(end (line-end-position)))
-        	(kill-ring-save start end)  ;; Yank the current line
-        	(pulse-momentary-highlight-region start end))))
-
-    (defun viper-delete-inner-word ()
-      "Delete the current word under the cursor, handling edge cases."
-      (interactive)
-      (let ((bounds (bounds-of-thing-at-point 'word)))
-        (if bounds
-            (kill-region (car bounds) (cdr bounds))
-          (message "No word under cursor"))))
-
-    (defun viper-change-inner-word ()
-      "Change the current word under the cursor, handling edge cases."
-      (interactive)
-      (viper-delete-inner-word)
-      (viper-insert nil))
-
-    (defun viper-yank-inner-word ()
-      "Yank (copy) the current word under the cursor, handling edge cases."
-      (interactive)
-      (let ((bounds (bounds-of-thing-at-point 'word)))
-        (pulse-momentary-highlight-region (car bounds) (cdr bounds))
-        (if bounds
-            (kill-ring-save (car bounds) (cdr bounds))
-          (message "No word under cursor"))))
-
-    (defun viper-delete-inner-compound-word ()
-      "Delete the entire compound word under the cursor, including `-` and `_`."
-      (interactive)
-      (let ((bounds (viper-compound-word-bounds)))
-        (if bounds
-            (kill-region (car bounds) (cdr bounds))
-          (message "No compound word under cursor"))))
-
-    (defun viper-change-inner-compound-word ()
-      "Change the entire compound word under the cursor, including `-` and `_`."
-      (interactive)
-      (viper-delete-inner-compound-word)
-      (viper-insert nil))
-
-    (defun viper-yank-inner-compound-word ()
-      "Yank the entire compound word under the cursor into the kill ring."
-      (interactive)
-      (let ((bounds (viper-compound-word-bounds)))
-        (pulse-momentary-highlight-region (car bounds) (cdr bounds))
-        (if bounds
-            (kill-ring-save (car bounds) (cdr bounds))
-          (message "No compound word under cursor"))))
-
-    (defun viper-compound-word-bounds ()
-      "Get the bounds of a compound word under the cursor.
-      A compound word includes letters, numbers, `-`, and `_`."
-      (save-excursion
-        (let* ((start (progn
-                        (skip-chars-backward "a-zA-Z0-9_-")
-                        (point)))
-               (end (progn
-                      (skip-chars-forward "a-zA-Z0-9_-")
-                      (point))))
-          (when (< start end) (cons start end)))))
-
-    (defun viper-visual-select-line ()
-  	"Start visual selection from the beginning of the current line."
-  	(interactive)
-  	(set-mark (line-beginning-position)))
-
-    (defun minknavemacs/jump-back-to-mark ()
-  	"Interactive function that attempts to move the cursor to the previously set mark."
-  	(interactive)
-  	(setq current-prefix-arg '(4)) ; C-u
-  	(call-interactively 'set-mark-command))
-
-
-    (defun minknavemacs/org-quick-time-stamp-inactive ()
-  	"Insert an inactive time stamp of the current time without user prompt"
-  	(interactive)
-  	(let ((current-prefix-arg '(16)))
-  	  (call-interactively 'org-time-stamp-inactive))
-  	(insert " "))
-
-    ;; https://www.reddit.com/r/emacs/comments/r7l3ar/how_do_you_scroll_half_a_page/
-    (defun minknavemacs/scroll-down-half-page ()
-  	"scroll down half a page while keeping the cursor centered" 
-  	(interactive)
-  	(let ((ln (line-number-at-pos (point)))
-  		  (lmax (line-number-at-pos (point-max))))
-  	  (cond ((= ln 1) (move-to-window-line nil))
-  			((= ln lmax) (recenter (window-end)))
-  			(t (progn
-  				 (move-to-window-line -1)
-  				 (recenter))))))
-
-    (defun minknavemacs/scroll-up-half-page ()
-  	"scroll up half a page while keeping the cursor centered"
-  	(interactive)
-  	(let ((ln (line-number-at-pos (point)))
-  		  (lmax (line-number-at-pos (point-max))))
-  	  (cond ((= ln 1) nil)
-  			((= ln lmax) (move-to-window-line nil))
-  			(t (progn
-  				 (move-to-window-line 0)
-  				 (recenter))))))
-
-    ;; Delete inside delimiters
-    (define-key viper-vi-global-user-map (kbd "di(") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
-    (define-key viper-vi-global-user-map (kbd "dib") (lambda () (interactive) (viper-delete-inside-delimiters ?\( ?\))))
-    (define-key viper-vi-global-user-map (kbd "di{") (lambda () (interactive) (viper-delete-inside-delimiters ?{ ?})))
-    (define-key viper-vi-global-user-map (kbd "di\"") (lambda () (interactive) (viper-delete-inside-delimiters ?\" ?\")))
-    (define-key viper-vi-global-user-map (kbd "di'") (lambda () (interactive) (viper-delete-inside-delimiters ?' ?')))
-
-    ;; Yank inside delimiters
-    (define-key viper-vi-global-user-map (kbd "yi(") (lambda () (interactive) (viper-yank-inside-delimiters ?\( ?\))))
-    (define-key viper-vi-global-user-map (kbd "yi{") (lambda () (interactive) (viper-yank-inside-delimiters ?{ ?})))
-    (define-key viper-vi-global-user-map (kbd "yi\"") (lambda () (interactive) (viper-yank-inside-delimiters ?\" ?\")))
-    (define-key viper-vi-global-user-map (kbd "yi'") (lambda () (interactive) (viper-yank-inside-delimiters ?' ?')))
-
-    ;; Delete/Yank current line or region
-    (define-key viper-vi-global-user-map (kbd "dd") 'viper-delete-line-or-region)
-    (define-key viper-vi-global-user-map (kbd "yy") 'viper-yank-line-or-region)
-    
-    ;; Delete/Yank current word
-    (define-key viper-vi-global-user-map (kbd "diw") 'viper-delete-inner-word)
-    (define-key viper-vi-global-user-map (kbd "yiw") 'viper-yank-inner-word)
-    (define-key viper-vi-global-user-map (kbd "ciw") 'viper-change-inner-word)
-    (define-key viper-vi-global-user-map (kbd "diW") 'viper-delete-inner-compound-word)
-    (define-key viper-vi-global-user-map (kbd "yiW") 'viper-yank-inner-compound-word)
-    (define-key viper-vi-global-user-map (kbd "ciW") 'viper-change-inner-compound-word)
-
-    ;; visual select commands 
-    (define-key viper-vi-global-user-map (kbd "v") 'set-mark-command)
-    (define-key viper-vi-global-user-map (kbd "V") 'viper-visual-select-line)
-
-    ;; incorporate Avy package
-    (define-key viper-vi-global-user-map (kbd "m") 'avy-goto-char-timer)
-
-    ;; better scrolling commands
-    (define-key viper-vi-global-user-map (kbd "J") 'minknavemacs/scroll-down-half-page)   
-    (define-key viper-vi-global-user-map (kbd "K") 'minknavemacs/scroll-up-half-page)
-
-    ;; Go, Jump, Shift, extended commands
-    (define-key viper-vi-global-user-map (kbd "g g") 'keyboard-quit)   
-    (define-key viper-vi-global-user-map (kbd "g v") 'minknavemacs/jump-back-to-mark)
-    (define-key viper-vi-global-user-map (kbd "g u") 'universal-argument)
-
-    ;; Z Commands, shift views and manage splits
-    (define-key viper-vi-global-user-map (kbd "z t") 'viper-line-to-top)
-    (define-key viper-vi-global-user-map (kbd "z z") 'viper-line-to-middle)
-    (define-key viper-vi-global-user-map (kbd "z b") 'viper-line-to-bottom)
-    (define-key viper-vi-global-user-map (kbd "z x") 'delete-other-windows)
-    (define-key viper-vi-global-user-map (kbd "z c") 'delete-window)
-    (define-key viper-vi-global-user-map (kbd "z s") 'split-window-below)
-    (define-key viper-vi-global-user-map (kbd "z v") 'split-window-right)
-    (define-key viper-vi-global-user-map (kbd "z h") 'windmove-left)
-    (define-key viper-vi-global-user-map (kbd "z j") 'windmove-down)
-    (define-key viper-vi-global-user-map (kbd "z k") 'windmove-up)
-    (define-key viper-vi-global-user-map (kbd "z l") 'windmove-right)
-    (define-key viper-vi-global-user-map (kbd "z m") 'viper-window-maximize)
-
-    ;; Indent region
-    (define-key viper-vi-global-user-map (kbd "==") 'indent-region)
-
-    ;; Word spelling
-    (define-key viper-vi-global-user-map (kbd "z=") 'ispell-word)
-
-    ;; Switching Functions
-    (define-key viper-vi-global-user-map (kbd "] b") 'next-buffer)
-    (define-key viper-vi-global-user-map (kbd "[ b") 'previous-buffer)
-    (define-key viper-vi-global-user-map (kbd "] t") 'tab-next)
-    (define-key viper-vi-global-user-map (kbd "[ t") 'tab-previous)
-    (define-key viper-vi-global-user-map (kbd "] d") 'flymake-goto-next-error)
-    (define-key viper-vi-global-user-map (kbd "[ d") 'flymake-goto-prev-error)
-
-    ;; "Quick" Menus start with prefix SPC
-    (define-key viper-vi-global-user-map (kbd "SPC SPC") 'switch-to-buffer)
-    (define-key viper-vi-global-user-map (kbd "SPC k") 'kill-current-buffer)
-    (define-key viper-vi-global-user-map (kbd "SPC b k") 'kill-buffer)
-    (define-key viper-vi-global-user-map (kbd "SPC b i") 'ibuffer)
-
-    (define-key viper-vi-global-user-map (kbd "SPC o a") 'org-agenda)
-    (define-key viper-vi-global-user-map (kbd "SPC o c") 'org-capture)
-    (define-key viper-vi-global-user-map (kbd "SPC o l") 'org-store-link)
-    (define-key viper-vi-global-user-map (kbd "SPC o t") 'minknavemacs/org-quick-time-stamp-inactive)
-
-    (define-key viper-vi-global-user-map (kbd "SPC x s") 'save-buffer)
-    (define-key viper-vi-global-user-map (kbd "SPC x d") 'dired-jump)
-    (define-key viper-vi-global-user-map (kbd "SPC x f") 'find-file)
-    (define-key viper-vi-global-user-map (kbd "SPC x c") 'save-buffers-kill-terminal))
-#+END_SRC
-
 *** Additional Emacs Keybindings
 #+BEGIN_SRC elisp
   (use-package minknavemacs-keybindings
@@ -1100,6 +850,149 @@ Emacs in general.
 #+END_SRC
 
 *** Core External
+**** Modal Editing Keybindings
+#+BEGIN_SRC emacs-lisp
+  (use-package ryo-modal
+    :ensure t
+    :load-path "~/.config/emacs/modal"
+    :commands ryo-modal-mode
+    :bind
+    ("C-z" . ryo-modal-mode) ;; backup
+    ("`" . ryo-modal-mode) ;; intended key
+    ("C-`" . minknavemacs/modal-print-backtick) ;; can still print this character 
+    :config
+    (require 'minknavemacs-keyfunc)
+    (define-key ryo-modal-mode-map (kbd "SPC h") 'help-command)
+    
+    (define-key ryo-modal-mode-map (kbd "SPC x") ctl-x-map)
+    (define-key ctl-x-map (kbd "s") #'(lambda () (interactive) (if ryo-modal-mode (save-buffer) (save-some-buffers))))
+    (define-key ctl-x-map (kbd "f") #'minknavemacs/modal-find-file) ;; needs to be called interactively
+    (define-key ctl-x-map (kbd "c") #'save-buffers-kill-terminal)
+    
+    (ryo-modal-keys
+     ("," minknavemacs/scroll-up-half-page)
+     ("." minknavemacs/scroll-down-half-page)
+     ("<" beginning-of-buffer)
+     (">" end-of-buffer)
+     ("{" backward-paragraph)
+     ("}" forward-paragraph)
+     (";" ryo-modal-repeat)
+
+     ("a" beginning-of-line :exit t)
+     ("A" end-of-line :exit t)
+     ("b" backward-word)
+     ("B" minknavemacs/modal-backward-symbol)
+     ("c" kill-ring-save)
+     ("C" append-next-kill)
+     ("d" kill-region)
+     ("D" kill-line)
+     ("e" forward-sexp)
+     ("E" backward-sexp)
+     ("f" transpose-words)
+     ("F" transpose-lines)
+     ("g"
+  	(("g"
+  	  keyboard-quit)
+  	 ("v"
+  	  minknavemacs/jump-back-to-mark)
+  	 ("V"
+  	  exchange-point-and-mark)
+  	 ("u"
+  	  universal-argument)))
+     ("h" backward-char)
+     ("H" beginning-of-line)
+     ("i" ryo-modal-mode)
+     ("I" overwrite-mode :exit t)
+     ("j" next-line)
+     ("J" minknavemacs/modal-shift-point-bottom)
+     ("k" previous-line)
+     ("K" minknavemacs/modal-shift-point-top)
+     ("l" forward-char)
+     ("L" end-of-line)
+     ("m" avy-goto-char-timer)
+     ("M" move-to-window-line-top-bottom)
+     ;; TODO n key actions with expand-region.el
+     ("o" minknavemacs/modal-open-line-below :exit t)
+     ("O" minknavemacs/modal-open-line-above :exit t)
+     ("p"
+  	(("p"
+  	  recenter
+  	  :name "Push to center window")
+  	 ("k"
+  	  minknavemacs/modal-recenter-top
+  	  :name "Push to top of window")
+  	 ("j"
+  	  minknavemacs/modal-recenter-bottom
+  	  :name "Push to bottom of window")))
+     ("P" recenter-other-window)
+     ("Q" revert-buffer)
+     ("r" backward-delete-char-untabify :read t)
+     ("R" query-replace)
+     ("s" isearch-forward)
+     ("S" isearch-backward)
+     ("t" zap-up-to-char)
+     ("T" zap-to-char)
+     ("u" undo)
+     ("U" undo-redo)
+     ("v" set-mark-command)
+     ("V" minknavemacs/modal-set-mark-line)
+     ("w" forward-word)
+     ("W" forward-symbol)
+     ("x" delete-char)
+     ("X" backward-delete-char-untabify)
+     ("y" yank)
+     ("Y" yank-pop)
+     ("z"
+  	(("z"
+  	  delete-other-windows)
+  	 ("x"
+  	  delete-window)
+  	 ("c"
+  	  split-window-below)
+  	 ("v"
+  	  split-window-right)
+  	 ("o"
+  	  minknavemacs/quick-window-jump)
+  	 ("h"
+  	  windmove-left)
+  	 ("j"
+  	  windmove-down)
+  	 ("k"
+  	  windmove-up)
+  	 ("l"
+  	  windmove-right)))
+     ("Z"
+  	(("c"
+  	  enlarge-window
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("C"
+  	  shrink-window
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("v"
+  	  enlarge-window-horizontally
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("V"
+  	  shrink-window-horizontally
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))))
+     )
+
+
+    (ryo-modal-keys
+     ;; First argument to ryo-modal-keys may be a list of keywords.
+     ;; These keywords will be applied to all keybindings.
+     (:norepeat t)
+     ("0" "M-0")
+     ("1" "M-1")
+     ("2" "M-2")
+     ("3" "M-3")
+     ("4" "M-4")
+     ("5" "M-5")
+     ("6" "M-6")
+     ("7" "M-7")
+     ("8" "M-8")
+     ("9" "M-9")))
+#+END_SRC
+
 **** Vertico Completions
 #+BEGIN_SRC elisp
   ;; PURPOSE: minimal completion system in the likes of helm and ivy
