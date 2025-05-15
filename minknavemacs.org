@@ -16,14 +16,15 @@ repository as well):
 : (org-babel-load-file "~/.config/emacs/minknavemacs.org")
 
 * Prerequsites
-- ripgrep
-- JetBrainsMono Nerd Font
+- ripgrep installed
+- JetBrainsMono Nerd Font is installed
 - move 'snippets' folder to ~/Documents/data/snippets
 - ensure 'modal' folder is in ~/.config/emacs/
 - Create the following under ~/Documents/org/
   - notice.org
   - ticker.org
   - inbox.org
+  - backlog.org
   - workstreams/ 
 - run M-x nerd-icons-install-fonts once
 
@@ -466,7 +467,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
     (setq org-stuck-projects '("+TODO=\"ACTION\"" ("NEXT")))
     (setq org-refile-targets '((org-agenda-files :level . 1)))
     (setq org-todo-keywords
-          '((sequence "BACKLOG(b)" "TODO(t)" "ACTION(a)" "NEXT(x)" "WAITING(w@)" "|" "DONE(d!)" "CANCELLED(c)")
+          '((sequence "BACKLOG(b)" "TODO(t)" "ACTION(a)" "NEXT(x)" "FOLLOWUP(w@)" "|" "DONE(d!)" "CANCELLED(c)")
             (sequence "NOTICE(n)" "|" "RESOLVED(r@)")
             ))
     (setq org-todo-keywoard-faces
@@ -474,7 +475,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
             ("BACKLOG" . "red")
             ("ACTION" . "purple")
             ("NEXT" . "green")
-            ("WAITING" . "yellow")
+            ("FOLLOWUP" . "yellow")
             ("DONE" . "blue")
             ("CANCELLED" . "blue")
             ("NOTICE" . org-warning)
@@ -486,13 +487,12 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
           '(
             ("d" "Todo Dashboard"
              (
-              (agenda "" ((org-deadline-warning-days 7)))
               (todo "NOTICE" ((org-agenda-overriding-header "Today's Notices")))
-              (tags "-@step+TODO=\"TODO\"-SCHEDULED={.+}|+@step+TODO=\"NEXT\""
-                    ((org-agenda-overriding-header "Today's Open TODOs")))
+              (agenda "" ((org-deadline-warning-days 7)))
+              (tags "-@step+TODO=\"TODO\"-SCHEDULED={.+}|+@step+TODO=\"NEXT\"-SCHEDULED={.+}"
+                    ((org-agenda-overriding-header "This Week's TODOs")))
               (stuck "" ((org-agenda-overriding-header "Stuck Actions")))
-              (todo "ACTION" ((org-agenda-overriding-header "In-Progress Actions")))
-              (todo "WAITING" ((org-agenda-overriding-header "Items Being Waited On")))
+              (tags "+TODO=\"FOLLOWUP\"-SCHEDULED={.+}" ((org-agenda-overriding-header "Requires Follow Up")))
               ))
             ))
 
