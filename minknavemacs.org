@@ -519,6 +519,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
             ("m" "Meeting Notes" entry (file+olp "~/Documents/org/inbox.org" "Meeting Notes")
              "* %t %^{Enter Meeting Title}\n** Attendees\n*** \n** Notes\n*** \n** Action Items\n*** TODO " :tree-type week :clock-in t :clock-resume t :empty-lines 0)
             ))
+    (add-hook 'org-mode-hook 'org-indent-mode)
     )
 #+END_SRC
 
