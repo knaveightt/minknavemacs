@@ -882,6 +882,7 @@ Emacs in general.
     (define-key ctl-x-map (kbd "s") #'(lambda () (interactive) (if ryo-modal-mode (save-buffer) (save-some-buffers))))
     (define-key ctl-x-map (kbd "f") #'minknavemacs/modal-find-file) ;; needs to be called interactively
     (define-key ctl-x-map (kbd "c") #'save-buffers-kill-terminal)
+    (define-key ctl-x-map (kbd "j") #'dired-jump)
 
     (ryo-modal-key
      "SPC" '(("SPC" switch-to-buffer)
