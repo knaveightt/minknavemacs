@@ -941,10 +941,10 @@ Emacs in general.
   	(("p"
   	  recenter
   	  :name "Push to center window")
-  	 ("k"
+  	 ("t"
   	  minknavemacs/modal-recenter-top
   	  :name "Push to top of window")
-  	 ("j"
+  	 ("b"
   	  minknavemacs/modal-recenter-bottom
   	  :name "Push to bottom of window")))
      ("P" recenter-other-window)
