@@ -1017,11 +1017,7 @@ Emacs in general.
      ("6" "M-6")
      ("7" "M-7")
      ("8" "M-8")
-     ("9" "M-9"))
-
-    ;; try to enter modal mode each time we move to a new context
-    (add-hook 'after-change-major-mode-hook 'ryo-modal-mode)
-    )
+     ("9" "M-9")))
 #+END_SRC
 
 **** Vertico Completions
