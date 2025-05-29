@@ -27,6 +27,10 @@ repository as well):
   - backlog.org
   - workstreams/ 
 - run M-x nerd-icons-install-fonts once
+- dunst or equivalent notification system if you keep to add the
+  following line at the end of init.el
+: (if (eq system-type 'gnu/linux) (shell-command "notify-send 'Emacs Configuration Loaded'"))
+
 
 * Configuration
 ** General Configuration
@@ -109,6 +113,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
         :config
         ;; Font and Theme Configuration
         (load-theme 'modus-vivendi-tinted t)
+  	    (set-cursor-color "#b4d273")
         (add-to-list 'default-frame-alist
           		   '(font . "JetBrainsMono NF 12"))
         ;; Set line-number-mode with relative numbering
@@ -1263,5 +1268,34 @@ some other companion packages to add some visual eyecandy to various places.
   ;; PURPOSE: provide color highlighting for rgb/hex codes in the buffer
   (use-package rainbow-mode
     :ensure t)
+#+END_SRC
+
+**** Monokai Pro Theme
+#+BEGIN_SRC elisp
+  (use-package monokai-pro-theme
+    :ensure t
+    :demand t
+    :config
+    (load-theme 'monokai-pro t)
+    ;; Customizations ---
+    ;; Fringe and Line Numbers
+    (set-face-attribute 'fringe nil :background "#272822")
+    (set-face-attribute 'line-number nil :background "#2d2a2e")
+    (set-face-attribute 'line-number-current-line nil :foreground "#eb6fef")
+
+    (set-face-attribute 'org-code nil :foreground "cyan")
+    (set-face-attribute 'org-verbatim nil :foreground "sky blue")
+
+    ;; I saw some themes used over- and under-lines to great effect when
+    ;; used with code blocks.  I also want to remove the background.
+    (set-face-attribute 'org-block-begin-line nil :underline "#A91" :bold t)
+    (set-face-attribute 'org-block-end-line nil :overline "#A91" :bold t)
+
+    ;; I'm not thrilled with the default background in the code
+    ;; blocks, so we'll remove it.
+    (set-face-attribute 'org-block nil :background "#272822")
+    
+    ;; Veritco Current Selection Face
+    (set-face-attribute 'vertico-current nil :background "#6c99bb"))
 #+END_SRC
 
