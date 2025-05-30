@@ -111,10 +111,17 @@
   (recenter-top-bottom -1))
 
 (defun minknavemacs/jump-back-to-mark ()
-	"Interactive function that attempts to move the cursor to the previously set mark."
-	(interactive)
-	(setq current-prefix-arg '(4)) ; C-u
-	(call-interactively 'set-mark-command))
+  "Interactive function that attempts to move the cursor to the previously set mark."
+  (interactive)
+  (setq current-prefix-arg '(4)) ; C-u
+  (call-interactively 'set-mark-command))
+
+(defun minknavemacs/dwim-delete ()
+  "Kills a region if a region is active, otherwise executes kill-line"
+  (interactive)
+  (if (region-active-p)
+	  (call-interactively 'kill-region)
+	(kill-line)))
 
 ;; end minknavemacs-keyfunc.el
 (provide 'minknavemacs-keyfunc)

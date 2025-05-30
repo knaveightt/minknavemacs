@@ -915,8 +915,8 @@ Emacs in general.
      ("B" minknavemacs/modal-backward-symbol)
      ("c" kill-ring-save)
      ("C" append-next-kill)
-     ("d" kill-region)
-     ("D" kill-line)
+     ("d" minknavemacs/dwim-delete)
+     ("D" kill-whole-line)
      ("e" forward-sexp)
      ("E" backward-sexp)
      ("f" transpose-words)
@@ -948,15 +948,36 @@ Emacs in general.
      ("O" minknavemacs/modal-open-line-above :exit t)
      ("p"
   	(("p"
-  	  recenter
-  	  :name "Push to center window")
-  	 ("t"
-  	  minknavemacs/modal-recenter-top
-  	  :name "Push to top of window")
-  	 ("b"
-  	  minknavemacs/modal-recenter-bottom
-  	  :name "Push to bottom of window")))
-     ("P" recenter-other-window)
+  	  delete-other-windows)
+  	 ("x"
+  	  delete-window)
+  	 ("s"
+  	  split-window-below)
+  	 ("v"
+  	  split-window-right)
+  	 ("o"
+  	  minknavemacs/quick-window-jump)
+  	 ("h"
+  	  windmove-left)
+  	 ("j"
+  	  windmove-down)
+  	 ("k"
+  	  windmove-up)
+  	 ("l"
+  	  windmove-right)))
+     ("P"
+  	(("s"
+  	  enlarge-window
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("S"
+  	  shrink-window
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("v"
+  	  enlarge-window-horizontally
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
+  	 ("V"
+  	  shrink-window-horizontally
+  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))))
      ("Q" revert-buffer)
      ("r" backward-delete-char-untabify :read t)
      ("R" query-replace)
@@ -976,36 +997,15 @@ Emacs in general.
      ("Y" yank-pop)
      ("z"
   	(("z"
-  	  delete-other-windows)
-  	 ("x"
-  	  delete-window)
-  	 ("c"
-  	  split-window-below)
-  	 ("v"
-  	  split-window-right)
-  	 ("o"
-  	  minknavemacs/quick-window-jump)
-  	 ("h"
-  	  windmove-left)
-  	 ("j"
-  	  windmove-down)
-  	 ("k"
-  	  windmove-up)
-  	 ("l"
-  	  windmove-right)))
-     ("Z"
-  	(("c"
-  	  enlarge-window
-  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
-  	 ("C"
-  	  shrink-window
-  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
-  	 ("v"
-  	  enlarge-window-horizontally
-  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))
-  	 ("V"
-  	  shrink-window-horizontally
-  	  :properties ((repeat-map . minknavemacs/window-manage-repeat-map)))))
+  	  recenter
+  	  :name "Push to center window")
+  	 ("t"
+  	  minknavemacs/modal-recenter-top
+  	  :name "Push to top of window")
+  	 ("b"
+  	  minknavemacs/modal-recenter-bottom
+  	  :name "Push to bottom of window")))
+     ("Z" recenter-other-window)
      )
 
 
