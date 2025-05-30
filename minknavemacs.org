@@ -123,6 +123,7 @@ Gracefully picked up from https://github.com/LionyxML/emacs-solo
         (global-display-line-numbers-mode t)
         (dolist (mode '(term-mode-hook
           			  eshell-mode-hook
+          			  shell-mode-hook
           			  dired-mode-hook))
           (add-hook mode 'minknavemacs/no-line-nums-hook))
         ;; Makes everything accept utf-8 as default, so buffers with tsx and so
