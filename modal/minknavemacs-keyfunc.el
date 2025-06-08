@@ -123,5 +123,26 @@
 	  (call-interactively 'kill-region)
 	(kill-line)))
 
+(defun minknavemacs/modal-increment-expression ()
+  "Increment the region forward a symbolic expression."
+  (interactive)
+  (if (not (region-active-p))
+	  (progn
+		(call-interactively 'set-mark-command)
+		(forward-sexp))
+	(progn
+	  (forward-sexp))))
+
+(defun minknavemacs/modal-decrement-expression ()
+  "Decrement the region forward a symbolic expression."
+  (interactive)
+  (if (not (region-active-p))
+	  (progn
+		(call-interactively 'set-mark-command)
+		(backward-sexp))
+	(progn
+	  (backward-sexp))))
+
+
 ;; end minknavemacs-keyfunc.el
 (provide 'minknavemacs-keyfunc)
